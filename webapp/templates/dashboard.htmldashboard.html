@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zeus Trading Bot Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a1a; color: #fff; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .header { text-align: center; margin-bottom: 30px; }
+    .header h1 { color: #ffd700; font-size: 2.2rem; margin-bottom: 8px; }
+    .status-bar { background: #2a2a2a; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+    .status-item { text-align: center; }
+    .status-value { font-size: 1.1rem; font-weight: bold; color: #ffd700; }
+    .status-label { color: #888; font-size: 0.8rem; margin-top: 4px; display: block; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }
+    .card { background: #2a2a2a; padding: 20px; border-radius: 10px; border-left: 4px solid #ffd700; }
+    .card h3 { color: #ffd700; margin-bottom: 15px; }
+    .metric { display: flex; justify-content: space-between; margin-bottom: 10px; padding: 8px 0; }
+    .metric-label { color: #ccc; }
+    .metric-value { font-weight: bold; }
+    .positive { color: #4CAF50; }
+    .negative { color: #f44336; }
+    .controls { text-align: center; margin-top: 30px; }
+    .btn { padding: 10px 18px; margin: 0 10px; border: none; border-radius: 5px; cursor: pointer; font-size: 0.95rem; transition: all 0.3s; }
+    .btn-start { background: #4CAF50; color: white; }
+    .btn-stop { background: #f44336; color: white; }
+    .btn:hover { opacity: 0.85; transform: translateY(-2px); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>⚡ Zeus Trading Bot</h1>
+      <div style="color:#aaa">Advanced Cryptocurrency Trading Dashboard</div>
+    </div>
+
+    <div class="status-bar" id="status-bar">
+      <div class="status-item">
+        <span class="status-value" id="breaker">-</span>
+        <span class="status-label">Breaker</span>
+      </div>
+      <div class="status-item">
+        <span class="status-value" id="ws-status">-</span>
+        <span class="status-label">WS Status</span>
+      </div>
+      <div class="status-item">
+        <span class="status-value" id="ws-ping">-</span>
+        <span class="status-label">WS Ping (ms)</span>
+      </div>
+      <div class="status-item">
+        <span class="status-value" id="exposure">-</span>
+        <span class="status-label">Exposición %</span>
+      </div>
+      <div class="status-item">
+        <span class="status-value" id="slippage">-</span>
+        <span class="status-label">Slippage medio (bps)</span>
+      </div>
+      <div class="status-item">
+        <span class="status-value" id="fill-rate">-</span>
+        <span class="status-label">Fill rate</span>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h3>Estado</h3>
+        <div class="metric"><span class="metric-label">Último error:</span><span class="metric-value" id="ultimo-error">-</span></div>
+        <div class="metric"><span class="metric-label">Latencia media:</span><span class="metric-value" id="latencia">-</span></div>
+      </div>
+      <div class="card">
+        <h3>Controles</h3>
+        <div class="controls">
+          <button class="btn btn-start" onclick="controlBot('start')">🚀 Start Bot</button>
+          <button class="btn btn-stop" onclick="controlBot('stop')">🛑 Stop Bot</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function fetchHealth() {
+      try {
+        const res = await fetch('/health');
+        if (!res.ok) throw new Error('Health fetch failed');
+        const h = await res.json();
+        document.getElementById('breaker').textContent = h.breaker?.toUpperCase?.() || '-';
+        const ws = h.ws || {};
+        const wsEx = Object.keys(ws)[0];
+        document.getElementById('ws-status').textContent = wsEx ? `${wsEx}:${ws[wsEx]?.status||'-'}` : '-';
+        document.getElementById('ws-ping').textContent = wsEx ? (ws[wsEx]?.ping_ms ?? '-') : '-';
+        document.getElementById('exposure').textContent = (h.exposicion_pct ?? h.exposure_pct ?? 0).toFixed(2);
+        document.getElementById('slippage').textContent = (h.slippage_bps ?? 0).toFixed(2);
+        document.getElementById('fill-rate').textContent = ((h.fill_rate ?? 0) * 100).toFixed(1) + '%';
+        document.getElementById('ultimo-error').textContent = h.ultimo_error || h.last_error || '-';
+        document.getElementById('latencia').textContent = (h.latencia_ms ?? h.latency_ms ?? 0).toFixed(1) + ' ms';
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    async function controlBot(action) {
+      try {
+        const response = await fetch(`/api/bot/${action}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }});
+        const result = await response.json();
+        alert(result.message || 'OK');
+        fetchHealth();
+      } catch (error) { alert('Error: ' + error.message); }
+    }
+    fetchHealth();
+    setInterval(fetchHealth, 10000);
+  </script>
+</body>
+</html>
