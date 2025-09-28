@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zeus Trading Bot Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a1a; color: #fff; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { color: #ffd700; font-size: 2.5rem; margin-bottom: 10px; }
+        .status-bar { background: #2a2a2a; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .status-item { text-align: center; }
+        .status-value { font-size: 1.8rem; font-weight: bold; color: #4CAF50; }
+        .status-label { color: #888; font-size: 0.9rem; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }
+        .card { background: #2a2a2a; padding: 20px; border-radius: 10px; border-left: 4px solid #ffd700; }
+        .card h3 { color: #ffd700; margin-bottom: 15px; }
+        .metric { display: flex; justify-content: space-between; margin-bottom: 10px; padding: 8px 0; }
+        .metric-label { color: #ccc; }
+        .metric-value { font-weight: bold; }
+        .positive { color: #4CAF50; }
+        .negative { color: #f44336; }
+        .controls { text-align: center; margin-top: 30px; }
+        .btn { padding: 12px 24px; margin: 0 10px; border: none; border-radius: 5px; cursor: pointer; font-size: 1rem; transition: all 0.3s; }
+        .btn-start { background: #4CAF50; color: white; }
+        .btn-stop { background: #f44336; color: white; }
+        .btn:hover { opacity: 0.8; transform: translateY(-2px); }
+        .signal-item { background: #333; padding: 10px; margin: 5px 0; border-radius: 5px; }
+        .signal-buy { border-left: 4px solid #4CAF50; }
+        .signal-sell { border-left: 4px solid #f44336; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚡ Zeus Trading Bot</h1>
+            <p>Advanced Cryptocurrency Trading Dashboard</p>
+        </div>
+        
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="status-value">{{ bot_state.total_trades }}</div>
+                <div class="status-label">Total Trades</div>
+            </div>
+            <div class="status-item">
+                <div class="status-value {{ 'positive' if bot_state.daily_pnl >= 0 else 'negative' }}">
+                    {{ "%.2f" | format(bot_state.daily_pnl) }}%
+                </div>
+                <div class="status-label">Daily P&L</div>
+            </div>
+            <div class="status-item">
+                <div class="status-value">{{ bot_state.current_positions|length }}</div>
+                <div class="status-label">Open Positions</div>
+            </div>
+            <div class="status-item">
+                <div class="status-value {{ 'positive' if bot_state.is_running else 'negative' }}">
+                    {{ "RUNNING" if bot_state.is_running else "STOPPED" }}
+                </div>
+                <div class="status-label">Bot Status</div>
+            </div>
+        </div>
+        
+        <div class="grid">
+            <div class="card">
+                <h3>📊 Performance Metrics</h3>
+                <div class="metric">
+                    <span class="metric-label">Current Balance:</span>
+                    <span class="metric-value">${{ "%.2f" | format(risk_metrics.current_balance) }}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Daily P&L:</span>
+                    <span class="metric-value {{ 'positive' if risk_metrics.daily_pnl >= 0 else 'negative' }}">
+                        ${{ "%.2f" | format(risk_metrics.daily_pnl) }}
+                    </span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Risk Utilization:</span>
+                    <span class="metric-value">{{ "%.1f" | format(risk_metrics.risk_utilization) }}%</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3>⚡ Recent Signals</h3>
+                <div id="signals-container">
+                    {% for signal in bot_state.last_signals[-5:] %}
+                    <div class="signal-item signal-{{ signal.type|lower }}">
+                        <strong>{{ signal.symbol }}</strong> - {{ signal.type }}
+                        <br><small>{{ signal.timestamp }}</small>
+                    </div>
+                    {% else %}
+                    <p style="color: #888; text-align: center;">No recent signals</p>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3>💰 Current Positions</h3>
+                <div id="positions-container">
+                    {% for symbol, position in bot_state.current_positions.items() %}
+                    <div class="metric">
+                        <span class="metric-label">{{ symbol }}:</span>
+                        <span class="metric-value">{{ position.side }} {{ "%.4f" | format(position.quantity) }}</span>
+                    </div>
+                    {% else %}
+                    <p style="color: #888; text-align: center;">No open positions</p>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3>🎯 Risk Management</h3>
+                <div class="metric">
+                    <span class="metric-label">Max Position Size:</span>
+                    <span class="metric-value">5%</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Daily Loss Limit:</span>
+                    <span class="metric-value">2%</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Stop Loss:</span>
+                    <span class="metric-value">2%</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Take Profit:</span>
+                    <span class="metric-value">6%</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button class="btn btn-start" onclick="controlBot('start')">🚀 Start Bot</button>
+            <button class="btn btn-stop" onclick="controlBot('stop')">🛑 Stop Bot</button>
+        </div>
+    </div>
+    
+    <script>
+        async function controlBot(action) {
+            try {
+                const response = await fetch(`/api/bot/${action}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const result = await response.json();
+                alert(result.message);
+                location.reload();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        // Auto-refresh every 10 seconds
+        setInterval(() => {
+            location.reload();
+        }, 10000);
+    </script>
+</body>
+</html>
